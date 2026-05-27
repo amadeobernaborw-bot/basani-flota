@@ -58,6 +58,7 @@ export async function getDocuments(
       .eq(idField, entityId)
       .eq('is_current', true)
       .is('deleted_at', null)
+      .order('document_type(orden)', { ascending: true })
       .order('document_type(nombre)', { ascending: true })
 
     if (error) {
@@ -124,6 +125,7 @@ export async function getDocumentTypes(
       .select('*')
       .eq('is_active', true)
       .in('aplica_a', [appliesTo, 'both'])
+      .order('orden', { ascending: true })
       .order('nombre', { ascending: true })
 
     if (error) {

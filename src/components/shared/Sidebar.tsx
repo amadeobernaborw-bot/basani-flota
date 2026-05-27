@@ -17,6 +17,7 @@ import {
 import type { UserRole } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import GlobalSearch from '@/components/shared/GlobalSearch'
+import BasaniLogo from '@/components/shared/BasaniLogo'
 
 interface NavItem {
   label: string
@@ -59,12 +60,10 @@ export default function Sidebar({ role, userEmail, alertCount = 0 }: SidebarProp
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 flex w-60 flex-col bg-white border-r border-gray-200">
+    <aside className="fixed inset-y-0 left-0 z-50 flex w-60 flex-col bg-sidebar border-r border-sidebar-border">
       {/* Brand */}
-      <div className="flex h-16 items-center px-6 border-b border-gray-100">
-        <span className="text-lg font-bold text-gray-900 tracking-tight">
-          Basani
-        </span>
+      <div className="flex h-16 items-center px-5 border-b border-gray-100">
+        <BasaniLogo height={30} />
       </div>
 
       {/* Global search */}

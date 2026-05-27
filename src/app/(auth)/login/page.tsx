@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import BasaniLogo from '@/components/shared/BasaniLogo'
 
 const loginSchema = z.object({
   email: z
@@ -59,15 +60,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-8 py-10">
           {/* Header */}
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-              Basani
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="mb-8 flex flex-col items-center gap-3">
+            <BasaniLogo height={42} />
+            <p className="text-sm text-gray-500">
               Sistema de Gestión Operativa
             </p>
           </div>

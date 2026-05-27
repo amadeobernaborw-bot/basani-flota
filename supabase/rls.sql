@@ -465,3 +465,36 @@ CREATE POLICY "alerts_delete_admin"
   TO authenticated
   USING (public.is_admin());
 
+-- ============================================================
+-- STORAGE: documents bucket
+-- ============================================================
+
+DROP POLICY IF EXISTS "storage_documents_select" ON storage.objects;
+CREATE POLICY "storage_documents_select"
+  ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (bucket_id = 'documents');
+
+DROP POLICY IF EXISTS "storage_documents_insert_admin" ON storage.objects;
+CREATE POLICY "storage_documents_insert_admin"
+  ON storage.objects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'documents' AND public.is_admin());
+
+DROP POLICY IF EXISTS "storage_documents_update_admin" ON storage.objects;
+CREATE POLICY "storage_documents_update_admin"
+  ON storage.objects
+  FOR UPDATE
+  TO authenticated
+  USING (bucket_id = 'documents' AND public.is_admin())
+  WITH CHECK (bucket_id = 'documents' AND public.is_admin());
+
+DROP POLICY IF EXISTS "storage_documents_delete_admin" ON storage.objects;
+CREATE POLICY "storage_documents_delete_admin"
+  ON storage.objects
+  FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'documents' AND public.is_admin());
+

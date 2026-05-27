@@ -26,6 +26,7 @@ export interface DocumentType {
   aplica_a: DocumentAppliesTo
   requiere_vencimiento: boolean
   is_active: boolean
+  orden: number
   created_at: string
 }
 

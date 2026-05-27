@@ -47,11 +47,16 @@ CREATE TABLE IF NOT EXISTS public.document_types (
   aplica_a             TEXT NOT NULL CHECK (aplica_a IN ('employee', 'vehicle', 'both')),
   requiere_vencimiento BOOLEAN NOT NULL DEFAULT TRUE,
   is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+  orden                INTEGER NOT NULL DEFAULT 999,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE public.document_types
+  ADD COLUMN IF NOT EXISTS orden INTEGER NOT NULL DEFAULT 999;
+
 CREATE INDEX IF NOT EXISTS idx_document_types_aplica_a ON public.document_types(aplica_a);
 CREATE INDEX IF NOT EXISTS idx_document_types_is_active ON public.document_types(is_active);
+CREATE INDEX IF NOT EXISTS idx_document_types_orden ON public.document_types(orden);
 
 -- ============================================================
 -- EMPLOYEES
