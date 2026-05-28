@@ -10,13 +10,16 @@ import {
   Wrench,
   Bell,
   Calendar,
+  CalendarDays,
+  LayoutList,
   Gauge,
   Settings,
   CheckCircle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { getCalendarEvents } from '@/lib/actions/calendar'
+import { getCalendarEvents, getUpcomingEvents } from '@/lib/actions/calendar'
 import MonthCalendar from '@/components/dashboard/MonthCalendar'
+import UpcomingCardsView from '@/components/dashboard/UpcomingCardsView'
 import type { Alert, AlertType } from '@/types/database'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -231,7 +234,13 @@ async function getDashboardMetrics(): Promise<DashboardMetrics> {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 interface DashboardPageProps {
-  searchParams: Promise<{ calYear?: string; calMonth?: string }>
+  searchParams: Promise<{ calYear?: string; calMonth?: string; view?: string }>
+}
+
+function addDays(isoDate: string, days: number): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
 }
 
 function parseCalendarParams(
@@ -256,12 +265,18 @@ function parseCalendarParams(
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams
+  const isCardView = params.view === 'cards'
   const { year, month } = parseCalendarParams(params)
 
-  const [metrics, calendar] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10)
+
+  const [metrics, calendarData] = await Promise.all([
     getDashboardMetrics(),
-    getCalendarEvents(year, month),
+    isCardView
+      ? getUpcomingEvents(today, addDays(today, 90))
+      : getCalendarEvents(year, month),
   ])
+  const calendar = calendarData
 
   const metricCards: MetricCardProps[] = [
     {
@@ -380,16 +395,46 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
       </section>
 
-      {/* Monthly calendar */}
+      {/* Calendar */}
       <section>
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Calendario
-        </h2>
-        <MonthCalendar
-          year={year}
-          month={month}
-          events={calendar.events}
-        />
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Calendario
+          </h2>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <Link
+              href={`/dashboard?calYear=${year}&calMonth=${month}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors ${
+                !isCardView
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <CalendarDays size={13} />
+              <span>Mes</span>
+            </Link>
+            <Link
+              href="/dashboard?view=cards"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors border-l border-gray-200 ${
+                isCardView
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <LayoutList size={13} />
+              <span>Próximos</span>
+            </Link>
+          </div>
+        </div>
+        {isCardView ? (
+          <UpcomingCardsView events={calendar.events} />
+        ) : (
+          <MonthCalendar
+            year={year}
+            month={month}
+            events={calendar.events}
+          />
+        )}
       </section>
 
       {/* Recent alerts */}
