@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCalendarEvents, getUpcomingEvents } from '@/lib/actions/calendar'
 import MonthCalendar from '@/components/dashboard/MonthCalendar'
 import UpcomingCardsView from '@/components/dashboard/UpcomingCardsView'
+import DashboardSearch from '@/components/dashboard/DashboardSearch'
 import type { Alert, AlertType } from '@/types/database'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -375,12 +376,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div className="space-y-8">
-      {/* Page title */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm capitalize text-gray-500">
-          {formatCurrentDate()}
-        </p>
+      {/* Page title + search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm capitalize text-gray-500">
+            {formatCurrentDate()}
+          </p>
+        </div>
+        <DashboardSearch />
       </div>
 
       {/* Metric cards */}
