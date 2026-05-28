@@ -2,31 +2,14 @@ import Link from 'next/link'
 import { getVehicles } from '@/lib/actions/vehicles'
 import { createClient } from '@/lib/supabase/server'
 import type { VehicleCategory, VehicleStatus, Profile } from '@/types/database'
-import type { Vehicle } from '@/types/database'
-
-const ESTADO_LABELS: Record<VehicleStatus, string> = {
-  activo: 'Activo',
-  fuera_de_servicio: 'Fuera de servicio',
-  baja: 'Baja',
-}
-
-const ESTADO_CLASSES: Record<VehicleStatus, string> = {
-  activo: 'bg-green-100 text-green-800',
-  fuera_de_servicio: 'bg-yellow-100 text-yellow-800',
-  baja: 'bg-red-100 text-red-800',
-}
-
-const CATEGORIA_LABELS: Record<VehicleCategory, string> = {
-  auto: 'Auto',
-  camioneta: 'Camioneta',
-  camion: 'Camión',
-}
+import VehicleListView from '@/components/vehicles/VehicleListView'
 
 interface SearchParams {
   estado?: string
   categoria?: string
   search?: string
   page?: string
+  view?: string
 }
 
 interface VehiclesPageProps {
@@ -41,38 +24,6 @@ function isVehicleCategory(value: string): value is VehicleCategory {
   return ['auto', 'camioneta', 'camion'].includes(value)
 }
 
-function VehicleRow({ vehicle }: { vehicle: Vehicle }) {
-  return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      <td className="px-4 py-3 text-sm font-medium text-gray-900 tracking-wide">
-        {vehicle.patente}
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-700">
-        {vehicle.marca} {vehicle.modelo}
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-600">{vehicle.anio}</td>
-      <td className="px-4 py-3 text-sm text-gray-600">
-        {CATEGORIA_LABELS[vehicle.categoria]}
-      </td>
-      <td className="px-4 py-3">
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO_CLASSES[vehicle.estado]}`}
-        >
-          {ESTADO_LABELS[vehicle.estado]}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-right">
-        <Link
-          href={`/vehicles/${vehicle.id}`}
-          className="text-sm font-medium text-gray-900 hover:text-gray-600"
-        >
-          Ver
-        </Link>
-      </td>
-    </tr>
-  )
-}
-
 export default async function VehiclesPage({ searchParams }: VehiclesPageProps) {
   const params = await searchParams
   const page = params.page ? Math.max(1, parseInt(params.page, 10)) : 1
@@ -80,6 +31,7 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
   const categoria =
     params.categoria && isVehicleCategory(params.categoria) ? params.categoria : undefined
   const search = params.search?.trim() || undefined
+  const viewMode = params.view === 'cards' ? 'cards' : 'table'
 
   const [{ data: vehicles, total, error }, supabase] = await Promise.all([
     getVehicles({ estado, categoria, search, page, limit: 20 }),
@@ -109,15 +61,20 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
       categoria: params.categoria,
       search: params.search,
       page: params.page,
+      view: params.view,
       ...updates,
     }
     if (merged.estado) query.set('estado', merged.estado)
     if (merged.categoria) query.set('categoria', merged.categoria)
     if (merged.search) query.set('search', merged.search)
     if (merged.page && merged.page !== '1') query.set('page', merged.page)
+    if (merged.view && merged.view !== 'table') query.set('view', merged.view)
     const qs = query.toString()
     return `/vehicles${qs ? `?${qs}` : ''}`
   }
+
+  const tableToggleUrl = buildUrl({ view: 'table', page: '1' })
+  const cardsToggleUrl = buildUrl({ view: 'cards', page: '1' })
 
   return (
     <div className="space-y-6">
@@ -141,6 +98,9 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
 
       {/* Filters */}
       <form method="GET" action="/vehicles" className="flex flex-wrap gap-3">
+        {params.view && params.view !== 'table' && (
+          <input type="hidden" name="view" value={params.view} />
+        )}
         <input
           type="text"
           name="search"
@@ -176,7 +136,7 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
         </button>
         {(search || estado || categoria) && (
           <Link
-            href="/vehicles"
+            href={buildUrl({ search: undefined, estado: undefined, categoria: undefined, page: '1' })}
             className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50"
           >
             Limpiar
@@ -191,9 +151,9 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        {vehicles.length === 0 ? (
+      {/* List / Cards */}
+      {vehicles.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm font-medium text-gray-500">No se encontraron vehículos</p>
             <p className="mt-1 text-xs text-gray-400">
@@ -202,38 +162,16 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
                 : 'Comience agregando un nuevo vehículo.'}
             </p>
           </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Patente
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Marca / Modelo
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Año
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Categoría
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Estado
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {vehicles.map((vehicle) => (
-                <VehicleRow key={vehicle.id} vehicle={vehicle} />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <VehicleListView
+          vehicles={vehicles}
+          isAdmin={isAdmin}
+          viewMode={viewMode}
+          tableToggleUrl={tableToggleUrl}
+          cardsToggleUrl={cardsToggleUrl}
+        />
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

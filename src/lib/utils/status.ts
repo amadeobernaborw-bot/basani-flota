@@ -12,7 +12,6 @@ export function getDocumentStatus(
   const days = differenceInDays(parseISO(fechaVencimiento), new Date())
 
   if (days < 0) return 'red'
-  if (days < 7) return 'red'
   if (days < 30) return 'yellow'
   return 'green'
 }

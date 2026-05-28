@@ -2,31 +2,14 @@ import Link from 'next/link'
 import { getEmployees } from '@/lib/actions/employees'
 import { createClient } from '@/lib/supabase/server'
 import type { EmployeeCategory, EmployeeStatus, Profile } from '@/types/database'
-import type { Employee } from '@/types/database'
-
-const ESTADO_LABELS: Record<EmployeeStatus, string> = {
-  activo: 'Activo',
-  suspendido: 'Suspendido',
-  baja: 'Baja',
-}
-
-const ESTADO_CLASSES: Record<EmployeeStatus, string> = {
-  activo: 'bg-green-100 text-green-800',
-  suspendido: 'bg-yellow-100 text-yellow-800',
-  baja: 'bg-red-100 text-red-800',
-}
-
-const CATEGORIA_LABELS: Record<EmployeeCategory, string> = {
-  operario: 'Operario',
-  camionero: 'Camionero',
-  administrativo: 'Administrativo',
-}
+import EmployeeListView from '@/components/employees/EmployeeListView'
 
 interface SearchParams {
   estado?: string
   categoria?: string
   search?: string
   page?: string
+  view?: string
 }
 
 interface EmployeesPageProps {
@@ -41,50 +24,13 @@ function isEmployeeCategory(value: string): value is EmployeeCategory {
   return ['operario', 'camionero', 'administrativo'].includes(value)
 }
 
-function formatDate(dateString: string | null): string {
-  if (!dateString) return '—'
-  const date = new Date(dateString + 'T00:00:00')
-  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-function EmployeeRow({ employee }: { employee: Employee }) {
-  return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-        {employee.apellido}, {employee.nombre}
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-600">{employee.dni}</td>
-      <td className="px-4 py-3 text-sm text-gray-600">
-        {CATEGORIA_LABELS[employee.categoria]}
-      </td>
-      <td className="px-4 py-3">
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO_CLASSES[employee.estado]}`}
-        >
-          {ESTADO_LABELS[employee.estado]}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-600">
-        {formatDate(employee.fecha_ingreso)}
-      </td>
-      <td className="px-4 py-3 text-right">
-        <Link
-          href={`/employees/${employee.id}`}
-          className="text-sm font-medium text-gray-900 hover:text-gray-600"
-        >
-          Ver
-        </Link>
-      </td>
-    </tr>
-  )
-}
-
 export default async function EmployeesPage({ searchParams }: EmployeesPageProps) {
   const params = await searchParams
   const page = params.page ? Math.max(1, parseInt(params.page, 10)) : 1
   const estado = params.estado && isEmployeeStatus(params.estado) ? params.estado : undefined
   const categoria = params.categoria && isEmployeeCategory(params.categoria) ? params.categoria : undefined
   const search = params.search?.trim() || undefined
+  const viewMode = params.view === 'cards' ? 'cards' : 'table'
 
   const [{ data: employees, total, error }, supabase] = await Promise.all([
     getEmployees({ estado, categoria, search, page, limit: 20 }),
@@ -109,14 +55,25 @@ export default async function EmployeesPage({ searchParams }: EmployeesPageProps
 
   function buildUrl(updates: Partial<SearchParams>): string {
     const query = new URLSearchParams()
-    const merged = { estado: params.estado, categoria: params.categoria, search: params.search, page: params.page, ...updates }
+    const merged = {
+      estado: params.estado,
+      categoria: params.categoria,
+      search: params.search,
+      page: params.page,
+      view: params.view,
+      ...updates,
+    }
     if (merged.estado) query.set('estado', merged.estado)
     if (merged.categoria) query.set('categoria', merged.categoria)
     if (merged.search) query.set('search', merged.search)
     if (merged.page && merged.page !== '1') query.set('page', merged.page)
+    if (merged.view && merged.view !== 'table') query.set('view', merged.view)
     const qs = query.toString()
     return `/employees${qs ? `?${qs}` : ''}`
   }
+
+  const tableToggleUrl = buildUrl({ view: 'table', page: '1' })
+  const cardsToggleUrl = buildUrl({ view: 'cards', page: '1' })
 
   return (
     <div className="space-y-6">
@@ -140,6 +97,9 @@ export default async function EmployeesPage({ searchParams }: EmployeesPageProps
 
       {/* Filters */}
       <form method="GET" action="/employees" className="flex flex-wrap gap-3">
+        {params.view && params.view !== 'table' && (
+          <input type="hidden" name="view" value={params.view} />
+        )}
         <input
           type="text"
           name="search"
@@ -175,7 +135,7 @@ export default async function EmployeesPage({ searchParams }: EmployeesPageProps
         </button>
         {(search || estado || categoria) && (
           <Link
-            href="/employees"
+            href={buildUrl({ search: undefined, estado: undefined, categoria: undefined, page: '1' })}
             className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50"
           >
             Limpiar
@@ -190,9 +150,9 @@ export default async function EmployeesPage({ searchParams }: EmployeesPageProps
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        {employees.length === 0 ? (
+      {/* List / Cards */}
+      {employees.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm font-medium text-gray-500">No se encontraron empleados</p>
             <p className="mt-1 text-xs text-gray-400">
@@ -201,38 +161,16 @@ export default async function EmployeesPage({ searchParams }: EmployeesPageProps
                 : 'Comience agregando un nuevo empleado.'}
             </p>
           </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Nombre / Apellido
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  DNI
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Categoría
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Estado
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Fecha ingreso
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((employee) => (
-                <EmployeeRow key={employee.id} employee={employee} />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <EmployeeListView
+          employees={employees}
+          isAdmin={isAdmin}
+          viewMode={viewMode}
+          tableToggleUrl={tableToggleUrl}
+          cardsToggleUrl={cardsToggleUrl}
+        />
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
